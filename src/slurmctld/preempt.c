@@ -46,6 +46,7 @@
 #include "src/common/slurm_protocol_api.h"
 #include "src/common/xmalloc.h"
 #include "src/common/xstring.h"
+#include "src/slurmctld/reservation.h"
 #include "src/slurmctld/slurmctld.h"
 #include "src/slurmctld/job_scheduler.h"
 #include "src/slurmctld/acct_policy.h"
@@ -195,7 +196,12 @@ extern List slurm_find_preemptable_jobs(job_record_t *job_ptr)
 	while ((job_p = list_next(job_iterator))) {
 		if (!IS_JOB_RUNNING(job_p) && !IS_JOB_SUSPENDED(job_p))
 			continue;
-		if (!(*(ops.preemptable))(job_p, job_ptr))
+		if (job_borrow_from_resv_check(job_p, job_ptr)) {
+			/*
+			 * This job is on borrowed time from the reservation!
+			 * Automatic preemption.
+			 */
+		} else if (!(*(ops.preemptable))(job_p, job_ptr))
 			continue;
 		if (!job_p->node_bitmap ||
 		    !bit_overlap(job_p->node_bitmap,
